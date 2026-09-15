@@ -131,7 +131,7 @@
             </div>
           </div>
 
-          <!-- Layer 3: tourdata.geojson (Initially OFF, mcate_cd_prefix3_nm 3 Categories) -->
+          <!-- Layer 3: tourdata.geojson -->
           <div class="bg-slate-800/40 border border-slate-700/50 rounded-xl p-3">
             <div class="flex items-center justify-between mb-2">
               <label class="flex items-center gap-2.5 cursor-pointer font-semibold text-xs text-white">
@@ -144,7 +144,6 @@
               <span id="tourStatus" class="text-[10px] text-slate-400 font-mono bg-slate-800 px-1.5 py-0.5 rounded">대기중</span>
             </div>
             
-            <!-- Dynamic mcate_cd_prefix3_nm Legend (Max 3) -->
             <div id="tourLegend" class="pl-6 pt-1 space-y-1.5 text-xs text-slate-300">
               <div class="text-[11px] text-slate-500">mcate_cd_prefix3_nm 수집 중...</div>
             </div>
@@ -192,9 +191,8 @@
       'residential': { color: '#94a3b8', name: '주거지도로 (residential)', weight: 1 }
     };
 
-    // Tour 3 Categories Color Map
     const tourColorMap = {};
-    const tourColors = ['#10b981', '#f59e0b', '#6366f1', '#ec4899']; // Top 3 + Fallback
+    const tourColors = ['#10b981', '#f59e0b', '#6366f1', '#ec4899'];
 
     function getSidoColor(sido) {
       if (!sido) return '#8b5cf6';
@@ -265,7 +263,7 @@
 
     // --- 2. LOAD GEOJSON FILES ---
 
-    // Load Admin GeoJSON
+    // Load Admin GeoJSON (Stroke Removed)
     async function loadAdminData(data) {
       if (adminLayer) map.removeLayer(adminLayer);
       
@@ -278,14 +276,12 @@
           const color = getSidoColor(sido);
           return {
             fillColor: color,
-            fillOpacity: 0.25,
-            color: color,
-            weight: 1.5,
-            dashArray: '2,2'
+            fillOpacity: 0.35,
+            stroke: false // 외곽선 삭제
           };
         },
         onEachFeature: (feature, layer) => {
-          layer.on('mouseover', function() { this.setStyle({ fillOpacity: 0.5, weight: 2.5 }); });
+          layer.on('mouseover', function() { this.setStyle({ fillOpacity: 0.65 }); });
           layer.on('mouseout', function() { adminLayer.resetStyle(this); });
           layer.bindPopup(createPopupContent(feature.properties, '행정구역 (admin)'));
         }
@@ -304,7 +300,7 @@
         const item = document.createElement('div');
         item.className = 'flex items-center gap-1.5 truncate';
         item.innerHTML = `
-          <span class="w-3 h-2.5 rounded shrink-0 border" style="background-color: ${color}40; border-color: ${color}"></span>
+          <span class="w-3 h-2.5 rounded shrink-0" style="background-color: ${color}"></span>
           <span class="truncate" title="${sido}">${sido}</span>
         `;
         legendContainer.appendChild(item);
@@ -357,11 +353,10 @@
       document.getElementById('roadStatus').className = "text-[10px] text-emerald-400 font-mono bg-emerald-950/80 px-1.5 py-0.5 rounded border border-emerald-800";
     }
 
-    // Load Tour GeoJSON (3 Categories by mcate_cd_prefix3_nm & Dynamic Zoom Radius)
+    // Load Tour GeoJSON (Stroke Removed)
     async function loadTourData(data) {
       if (tourLayer) map.removeLayer(tourLayer);
 
-      // Extract unique mcate_cd_prefix3_nm & Select Top 3
       const mcateCounts = {};
       if (data.features) {
         data.features.forEach(f => {
@@ -388,10 +383,8 @@
           return L.circleMarker(latlng, {
             radius: currentRadius,
             fillColor: color,
-            color: '#ffffff',
-            weight: 1,
-            opacity: 1,
-            fillOpacity: 0.85
+            stroke: false, // 외곽선 삭제
+            fillOpacity: 0.9
           });
         },
         onEachFeature: (feature, layer) => {
@@ -403,7 +396,6 @@
         tourLayer.addTo(map);
       }
 
-      // Render 3 Categories Legend
       const legendContainer = document.getElementById('tourLegend');
       legendContainer.innerHTML = '';
 
