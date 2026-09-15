@@ -238,10 +238,12 @@
       let fieldList = [];
 
       if (layerType === 'admin') {
-        title = properties.sido ? `${properties.sido} ${properties.sigungu_nm || ''}` : '행정구역 상세';
+        const sigunguName = properties.SIGUNGU_NM || properties.sigungu_nm || '';
+        title = properties.sido ? `${properties.sido} ${sigunguName}` : (sigunguName || '행정구역 상세');
+        
         fieldList = [
           { key: 'sido', label: '시도명' },
-          { key: 'sigungu_nm', label: '시군구명' },
+          { key: 'SIGUNGU_NM', label: '시군구명', fallbackKey: 'sigungu_nm' },
           { key: 'population', label: '인구' },
           { key: 'popden', label: '인구밀도' }
         ];
@@ -249,13 +251,15 @@
         const fclass = properties.fclass;
         const roadName = roadClassConfig[fclass]?.name || fclass || '도로';
         title = properties.name ? `${properties.name} (${roadName})` : roadName;
+        
         fieldList = [
           { key: 'fclass', label: '도로 분류', transform: (v) => roadClassConfig[v]?.name || v },
           { key: 'name', label: '도로명' },
-          { key: 'ref', label: '노선번호' }
+          { key: 'maxspeed', label: '제한속도', transform: (v) => v ? `${v} km/h` : '-' }
         ];
       } else if (layerType === 'tour') {
         title = properties.poi_nm || properties.title || '관광지 상세';
+        
         fieldList = [
           { key: 'mcate_cd_prefix3_nm', label: '대분류' },
           { key: 'mcate_nm', label: '소분류' },
@@ -266,12 +270,15 @@
       let rows = '';
       fieldList.forEach(item => {
         let rawVal = properties[item.key];
-        let displayVal = rawVal !== undefined && rawVal !== null ? rawVal : '-';
+        if ((rawVal === undefined || rawVal === null) && item.fallbackKey) {
+          rawVal = properties[item.fallbackKey];
+        }
+
+        let displayVal = rawVal !== undefined && rawVal !== null && rawVal !== '' ? rawVal : '-';
         if (item.transform && rawVal) {
           displayVal = item.transform(rawVal);
         }
         
-        // 숫자인 경우 천단위 콤마 적용 (인구, 인구밀도 등)
         if (typeof displayVal === 'number') {
           displayVal = displayVal.toLocaleString();
         }
@@ -283,21 +290,6 @@
           </tr>
         `;
       });
-
-      // 지정된 핵심 항목 외 남아있는 다른 프로퍼티 추가 표시
-      const usedKeys = fieldList.map(f => f.key);
-      if (layerType === 'tour') usedKeys.push('poi_nm');
-
-      for (const [key, val] of Object.entries(properties)) {
-        if (!usedKeys.includes(key) && typeof val !== 'object') {
-          rows += `
-            <tr class="border-b border-slate-100 last:border-none opacity-60">
-              <td class="py-1 px-2.5 text-slate-400 text-[10px] bg-slate-50 w-24 truncate">${key}</td>
-              <td class="py-1 px-2.5 text-slate-600 text-[10px] break-all">${val !== null ? val : '-'}</td>
-            </tr>
-          `;
-        }
-      }
 
       const layerTitleMap = {
         'admin': '행정구역 (admin)',
@@ -389,11 +381,9 @@
         roadLayer.addTo(map);
       }
 
-      // Render Road Legend (Ordered: motorway -> trunk -> primary -> secondary)
       const legendContainer = document.getElementById('roadLegend');
       legendContainer.innerHTML = '';
 
-      // 정해진 범례 순서대로 렌더링
       roadOrder.forEach(fclass => {
         const conf = roadClassConfig[fclass];
         const item = document.createElement('div');
@@ -405,7 +395,6 @@
         legendContainer.appendChild(item);
       });
 
-      // 기타 클래스가 존재할 경우 하단 추가
       fclassSet.forEach(fclass => {
         if (!roadOrder.includes(fclass)) {
           const style = getRoadStyle(fclass);
