@@ -95,7 +95,7 @@
 
         <div id="panelContent" class="p-3 overflow-y-auto space-y-3.5 max-h-[calc(100vh-10rem)]">
           
-          <!-- Layer 1: admin.geojson (Top) -->
+          <!-- Layer 1: admin.geojson -->
           <div class="bg-slate-800/40 border border-slate-700/50 rounded-xl p-3">
             <div class="flex items-center justify-between mb-2">
               <label class="flex items-center gap-2.5 cursor-pointer font-semibold text-xs text-white">
@@ -108,7 +108,6 @@
               <span id="adminStatus" class="text-[10px] text-slate-400 font-mono bg-slate-800 px-1.5 py-0.5 rounded">대기중</span>
             </div>
             
-            <!-- Dynamic Sido Legend -->
             <div id="adminLegend" class="pl-6 pt-1 grid grid-cols-2 gap-1.5 text-xs text-slate-300">
               <div class="col-span-2 text-[11px] text-slate-500">sido 별 범례 수집 중...</div>
             </div>
@@ -127,13 +126,12 @@
               <span id="roadStatus" class="text-[10px] text-slate-400 font-mono bg-slate-800 px-1.5 py-0.5 rounded">대기중</span>
             </div>
             
-            <!-- Dynamic Fclass Legend -->
             <div id="roadLegend" class="pl-6 pt-1 space-y-1.5 text-xs text-slate-300">
               <div class="text-[11px] text-slate-500">fclass 별 범례 수집 중...</div>
             </div>
           </div>
 
-          <!-- Layer 3: tourdata.geojson (Initially OFF) -->
+          <!-- Layer 3: tourdata.geojson (Initially OFF, mcate_cd_prefix3_nm 3 Categories) -->
           <div class="bg-slate-800/40 border border-slate-700/50 rounded-xl p-3">
             <div class="flex items-center justify-between mb-2">
               <label class="flex items-center gap-2.5 cursor-pointer font-semibold text-xs text-white">
@@ -146,11 +144,9 @@
               <span id="tourStatus" class="text-[10px] text-slate-400 font-mono bg-slate-800 px-1.5 py-0.5 rounded">대기중</span>
             </div>
             
-            <div class="pl-6 pt-1 space-y-1 text-xs text-slate-400">
-              <div class="flex items-center gap-2">
-                <span class="w-2 h-2 rounded-full bg-emerald-500 inline-block"></span>
-                <span>관광지 레이어 포인트</span>
-              </div>
+            <!-- Dynamic mcate_cd_prefix3_nm Legend (Max 3) -->
+            <div id="tourLegend" class="pl-6 pt-1 space-y-1.5 text-xs text-slate-300">
+              <div class="text-[11px] text-slate-500">mcate_cd_prefix3_nm 수집 중...</div>
             </div>
           </div>
 
@@ -161,7 +157,7 @@
 
   <!-- JavaScript App Logic -->
   <script>
-    // --- 1. INITIALIZE MAP & STANDARD OSM TILE ---
+    // --- 1. INITIALIZE MAP & BASE TILE ---
     const map = L.map('map', {
       center: [36.3, 127.8],
       zoom: 7,
@@ -196,6 +192,10 @@
       'residential': { color: '#94a3b8', name: '주거지도로 (residential)', weight: 1 }
     };
 
+    // Tour 3 Categories Color Map
+    const tourColorMap = {};
+    const tourColors = ['#10b981', '#f59e0b', '#6366f1', '#ec4899']; // Top 3 + Fallback
+
     function getSidoColor(sido) {
       if (!sido) return '#8b5cf6';
       if (!sidoColorMap[sido]) {
@@ -207,11 +207,14 @@
 
     function getRoadStyle(fclass) {
       const conf = fclassColorMap[fclass] || { color: '#64748b', weight: 1.5 };
-      return {
-        color: conf.color,
-        weight: conf.weight,
-        opacity: 0.85
-      };
+      return { color: conf.color, weight: conf.weight, opacity: 0.85 };
+    }
+
+    function getTourPointRadius(zoom) {
+      if (zoom <= 7) return 2.5;
+      if (zoom <= 9) return 4;
+      if (zoom <= 11) return 5.5;
+      return 7;
     }
 
     // Toast Notification Helper
@@ -245,7 +248,7 @@
         }
       }
 
-      const title = properties.sido || properties.fclass || properties.name || properties.title || layerTitle;
+      const title = properties.title || properties.name || properties.mcate_cd_prefix3_nm || properties.sido || properties.fclass || layerTitle;
 
       return `
         <div class="bg-white text-slate-800 rounded-xl overflow-hidden shadow-xl">
@@ -262,7 +265,7 @@
 
     // --- 2. LOAD GEOJSON FILES ---
 
-    // Load Admin GeoJSON with Sido Styles
+    // Load Admin GeoJSON
     async function loadAdminData(data) {
       if (adminLayer) map.removeLayer(adminLayer);
       
@@ -270,7 +273,7 @@
 
       adminLayer = L.geoJSON(data, {
         style: (feature) => {
-          const sido = feature.properties?.sido || feature.properties?.CTP_KOR_NM || feature.properties?.NAME || '기타';
+          const sido = feature.properties?.sido || feature.properties?.CTP_KOR_NM || '기타';
           sidoSet.add(sido);
           const color = getSidoColor(sido);
           return {
@@ -292,7 +295,6 @@
         adminLayer.addTo(map);
       }
 
-      // Render Admin Legend
       const legendContainer = document.getElementById('adminLegend');
       legendContainer.innerHTML = '';
       if (sidoSet.size === 0) sidoSet.add('기타');
@@ -313,7 +315,7 @@
       document.getElementById('adminStatus').className = "text-[10px] text-emerald-400 font-mono bg-emerald-950/80 px-1.5 py-0.5 rounded border border-emerald-800";
     }
 
-    // Load Road GeoJSON with Fclass Styles
+    // Load Road GeoJSON
     async function loadRoadData(data) {
       if (roadLayer) map.removeLayer(roadLayer);
 
@@ -334,7 +336,6 @@
         roadLayer.addTo(map);
       }
 
-      // Render Road Legend
       const legendContainer = document.getElementById('roadLegend');
       legendContainer.innerHTML = '';
       if (fclassSet.size === 0) fclassSet.add('기타');
@@ -356,17 +357,39 @@
       document.getElementById('roadStatus').className = "text-[10px] text-emerald-400 font-mono bg-emerald-950/80 px-1.5 py-0.5 rounded border border-emerald-800";
     }
 
-    // Load Tour GeoJSON (Initial State: OFF)
+    // Load Tour GeoJSON (3 Categories by mcate_cd_prefix3_nm & Dynamic Zoom Radius)
     async function loadTourData(data) {
       if (tourLayer) map.removeLayer(tourLayer);
 
+      // Extract unique mcate_cd_prefix3_nm & Select Top 3
+      const mcateCounts = {};
+      if (data.features) {
+        data.features.forEach(f => {
+          const cat = f.properties?.mcate_cd_prefix3_nm || f.properties?.category || '기타';
+          mcateCounts[cat] = (mcateCounts[cat] || 0) + 1;
+        });
+      }
+
+      const top3Categories = Object.keys(mcateCounts)
+        .sort((a, b) => mcateCounts[b] - mcateCounts[a])
+        .slice(0, 3);
+
+      top3Categories.forEach((cat, idx) => {
+        tourColorMap[cat] = tourColors[idx];
+      });
+
+      const currentRadius = getTourPointRadius(map.getZoom());
+
       tourLayer = L.geoJSON(data, {
         pointToLayer: (feature, latlng) => {
+          const cat = feature.properties?.mcate_cd_prefix3_nm || feature.properties?.category || '';
+          const color = tourColorMap[cat] || tourColors[3];
+
           return L.circleMarker(latlng, {
-            radius: 5,
-            fillColor: '#10b981',
+            radius: currentRadius,
+            fillColor: color,
             color: '#ffffff',
-            weight: 1.5,
+            weight: 1,
             opacity: 1,
             fillOpacity: 0.85
           });
@@ -376,15 +399,57 @@
         }
       });
 
-      // Initially OFF according to user request
       if (document.getElementById('layerTour').checked) {
         tourLayer.addTo(map);
       }
 
+      // Render 3 Categories Legend
+      const legendContainer = document.getElementById('tourLegend');
+      legendContainer.innerHTML = '';
+
+      if (top3Categories.length === 0) {
+        legendContainer.innerHTML = '<div class="text-[11px] text-slate-500">범례 데이터 없음</div>';
+      } else {
+        top3Categories.forEach(cat => {
+          const color = tourColorMap[cat];
+          const item = document.createElement('div');
+          item.className = 'flex items-center gap-2 truncate';
+          item.innerHTML = `
+            <span class="w-2.5 h-2.5 rounded-full inline-block shrink-0" style="background-color: ${color}"></span>
+            <span class="truncate" title="${cat}">${cat}</span>
+          `;
+          legendContainer.appendChild(item);
+        });
+
+        if (Object.keys(mcateCounts).length > 3) {
+          const item = document.createElement('div');
+          item.className = 'flex items-center gap-2 truncate text-slate-400';
+          item.innerHTML = `
+            <span class="w-2.5 h-2.5 rounded-full inline-block shrink-0" style="background-color: ${tourColors[3]}"></span>
+            <span class="truncate">기타 (${Object.keys(mcateCounts).length - 3}개 카테고리)</span>
+          `;
+          legendContainer.appendChild(item);
+        }
+      }
+
       const count = data.features ? data.features.length : 1;
-      document.getElementById('tourStatus').innerText = `${count}개 (OFF)`;
-      document.getElementById('tourStatus').className = "text-[10px] text-slate-400 font-mono bg-slate-800 px-1.5 py-0.5 rounded border border-slate-700";
+      const isChecked = document.getElementById('layerTour').checked;
+      document.getElementById('tourStatus').innerText = `${count}개${isChecked ? '' : ' (OFF)'}`;
+      document.getElementById('tourStatus').className = isChecked 
+        ? "text-[10px] text-emerald-400 font-mono bg-emerald-950/80 px-1.5 py-0.5 rounded border border-emerald-800"
+        : "text-[10px] text-slate-400 font-mono bg-slate-800 px-1.5 py-0.5 rounded border border-slate-700";
     }
+
+    // Dynamic point size update on zoom
+    map.on('zoomend', () => {
+      if (!tourLayer) return;
+      const newRadius = getTourPointRadius(map.getZoom());
+      tourLayer.eachLayer(layer => {
+        if (layer.setRadius) {
+          layer.setRadius(newRadius);
+        }
+      });
+    });
 
     // Fit map bounds automatically to active layers
     function fitAllExtent() {
@@ -399,7 +464,7 @@
       }
     }
 
-    // Auto-fetch the 3 GeoJSON files from local directory
+    // Auto-fetch the 3 GeoJSON files
     async function autoFetchGeoJSONFiles() {
       showToast("동일 경로의 GeoJSON 파일 읽는 중...", "fa-spin fa-circle-notch");
       
@@ -492,13 +557,14 @@
 
     document.getElementById('layerTour').addEventListener('change', e => {
       if (!tourLayer) return;
+      const count = tourLayer.getLayers().length;
       if (e.target.checked) {
         map.addLayer(tourLayer);
-        document.getElementById('tourStatus').innerText = `${tourLayer.getLayers().length}개`;
+        document.getElementById('tourStatus').innerText = `${count}개`;
         document.getElementById('tourStatus').className = "text-[10px] text-emerald-400 font-mono bg-emerald-950/80 px-1.5 py-0.5 rounded border border-emerald-800";
       } else {
         map.removeLayer(tourLayer);
-        document.getElementById('tourStatus').innerText = `${tourLayer.getLayers().length}개 (OFF)`;
+        document.getElementById('tourStatus').innerText = `${count}개 (OFF)`;
         document.getElementById('tourStatus').className = "text-[10px] text-slate-400 font-mono bg-slate-800 px-1.5 py-0.5 rounded border border-slate-700";
       }
     });
