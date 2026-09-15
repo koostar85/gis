@@ -182,14 +182,14 @@
       '#06b6d4', '#6366f1', '#14b8a6', '#f43f5e', '#a855f7'
     ];
 
-    const fclassColorMap = {
-      'motorway': { color: '#ef4444', name: '고속도로 (motorway)', weight: 3 },
-      'trunk': { color: '#f97316', name: '주요간선 (trunk)', weight: 2.5 },
-      'primary': { color: '#f59e0b', name: '1차선/기본도로 (primary)', weight: 2 },
-      'secondary': { color: '#eab308', name: '2차선도로 (secondary)', weight: 1.5 },
-      'tertiary': { color: '#84cc16', name: '소로 (tertiary)', weight: 1.5 },
-      'residential': { color: '#94a3b8', name: '주거지도로 (residential)', weight: 1 }
+    // Road Order & Mapping Configuration
+    const roadClassConfig = {
+      'motorway': { name: '고속도로', color: '#ef4444', weight: 3 },
+      'trunk': { name: '국도', color: '#f97316', weight: 2.5 },
+      'primary': { name: '일반국도', color: '#f59e0b', weight: 2 },
+      'secondary': { name: '지방도', color: '#eab308', weight: 1.5 }
     };
+    const roadOrder = ['motorway', 'trunk', 'primary', 'secondary'];
 
     const tourColorMap = {};
     const tourColors = ['#10b981', '#f59e0b', '#6366f1', '#ec4899'];
@@ -204,7 +204,7 @@
     }
 
     function getRoadStyle(fclass) {
-      const conf = fclassColorMap[fclass] || { color: '#64748b', weight: 1.5 };
+      const conf = roadClassConfig[fclass] || { color: '#64748b', weight: 1.5 };
       return { color: conf.color, weight: conf.weight, opacity: 0.85 };
     }
 
@@ -232,29 +232,86 @@
       }
     }
 
-    // Popup Generator
-    function createPopupContent(properties, layerTitle) {
+    // Custom Popup Generator
+    function createPopupContent(properties, layerType) {
+      let title = '';
+      let fieldList = [];
+
+      if (layerType === 'admin') {
+        title = properties.sido ? `${properties.sido} ${properties.sigungu_nm || ''}` : '행정구역 상세';
+        fieldList = [
+          { key: 'sido', label: '시도명' },
+          { key: 'sigungu_nm', label: '시군구명' },
+          { key: 'population', label: '인구' },
+          { key: 'popden', label: '인구밀도' }
+        ];
+      } else if (layerType === 'road') {
+        const fclass = properties.fclass;
+        const roadName = roadClassConfig[fclass]?.name || fclass || '도로';
+        title = properties.name ? `${properties.name} (${roadName})` : roadName;
+        fieldList = [
+          { key: 'fclass', label: '도로 분류', transform: (v) => roadClassConfig[v]?.name || v },
+          { key: 'name', label: '도로명' },
+          { key: 'ref', label: '노선번호' }
+        ];
+      } else if (layerType === 'tour') {
+        title = properties.poi_nm || properties.title || '관광지 상세';
+        fieldList = [
+          { key: 'mcate_cd_prefix3_nm', label: '대분류' },
+          { key: 'mcate_nm', label: '소분류' },
+          { key: 'address', label: '주소' }
+        ];
+      }
+
       let rows = '';
+      fieldList.forEach(item => {
+        let rawVal = properties[item.key];
+        let displayVal = rawVal !== undefined && rawVal !== null ? rawVal : '-';
+        if (item.transform && rawVal) {
+          displayVal = item.transform(rawVal);
+        }
+        
+        // 숫자인 경우 천단위 콤마 적용 (인구, 인구밀도 등)
+        if (typeof displayVal === 'number') {
+          displayVal = displayVal.toLocaleString();
+        }
+
+        rows += `
+          <tr class="border-b border-slate-100 last:border-none">
+            <td class="py-1.5 px-2.5 text-slate-500 font-semibold text-[11px] bg-slate-50 w-24 shrink-0">${item.label}</td>
+            <td class="py-1.5 px-2.5 text-slate-800 text-[11px] font-normal break-all">${displayVal}</td>
+          </tr>
+        `;
+      });
+
+      // 지정된 핵심 항목 외 남아있는 다른 프로퍼티 추가 표시
+      const usedKeys = fieldList.map(f => f.key);
+      if (layerType === 'tour') usedKeys.push('poi_nm');
+
       for (const [key, val] of Object.entries(properties)) {
-        if (typeof val !== 'object') {
+        if (!usedKeys.includes(key) && typeof val !== 'object') {
           rows += `
-            <tr class="border-b border-slate-100 last:border-none">
-              <td class="py-1 px-2 text-slate-500 font-semibold text-[11px] bg-slate-50 w-28 break-all">${key}</td>
-              <td class="py-1 px-2 text-slate-800 text-[11px] font-normal break-all">${val !== null ? val : '-'}</td>
+            <tr class="border-b border-slate-100 last:border-none opacity-60">
+              <td class="py-1 px-2.5 text-slate-400 text-[10px] bg-slate-50 w-24 truncate">${key}</td>
+              <td class="py-1 px-2.5 text-slate-600 text-[10px] break-all">${val !== null ? val : '-'}</td>
             </tr>
           `;
         }
       }
 
-      const title = properties.title || properties.name || properties.mcate_cd_prefix3_nm || properties.sido || properties.fclass || layerTitle;
+      const layerTitleMap = {
+        'admin': '행정구역 (admin)',
+        'road': '도로망 (road)',
+        'tour': '관광지 (tourdata)'
+      };
 
       return `
         <div class="bg-white text-slate-800 rounded-xl overflow-hidden shadow-xl">
           <div class="bg-slate-900 text-white px-3 py-2 border-b border-slate-800">
-            <span class="text-[10px] uppercase font-bold tracking-wider text-indigo-400 block">${layerTitle}</span>
+            <span class="text-[10px] uppercase font-bold tracking-wider text-indigo-400 block">${layerTitleMap[layerType]}</span>
             <h3 class="text-xs font-bold leading-tight truncate">${title}</h3>
           </div>
-          <div class="max-h-48 overflow-y-auto">
+          <div class="max-h-52 overflow-y-auto">
             <table class="w-full text-left border-collapse">${rows}</table>
           </div>
         </div>
@@ -263,7 +320,7 @@
 
     // --- 2. LOAD GEOJSON FILES ---
 
-    // Load Admin GeoJSON (Stroke Removed)
+    // Load Admin GeoJSON
     async function loadAdminData(data) {
       if (adminLayer) map.removeLayer(adminLayer);
       
@@ -277,13 +334,13 @@
           return {
             fillColor: color,
             fillOpacity: 0.35,
-            stroke: false // 외곽선 삭제
+            stroke: false
           };
         },
         onEachFeature: (feature, layer) => {
           layer.on('mouseover', function() { this.setStyle({ fillOpacity: 0.65 }); });
           layer.on('mouseout', function() { adminLayer.resetStyle(this); });
-          layer.bindPopup(createPopupContent(feature.properties, '행정구역 (admin)'));
+          layer.bindPopup(createPopupContent(feature.properties, 'admin'));
         }
       });
 
@@ -324,7 +381,7 @@
           return getRoadStyle(fclass);
         },
         onEachFeature: (feature, layer) => {
-          layer.bindPopup(createPopupContent(feature.properties, '도로망 (road)'));
+          layer.bindPopup(createPopupContent(feature.properties, 'road'));
         }
       });
 
@@ -332,20 +389,34 @@
         roadLayer.addTo(map);
       }
 
+      // Render Road Legend (Ordered: motorway -> trunk -> primary -> secondary)
       const legendContainer = document.getElementById('roadLegend');
       legendContainer.innerHTML = '';
-      if (fclassSet.size === 0) fclassSet.add('기타');
 
-      fclassSet.forEach(fclass => {
-        const style = getRoadStyle(fclass);
-        const name = fclassColorMap[fclass]?.name || fclass;
+      // 정해진 범례 순서대로 렌더링
+      roadOrder.forEach(fclass => {
+        const conf = roadClassConfig[fclass];
         const item = document.createElement('div');
         item.className = 'flex items-center gap-2 truncate';
         item.innerHTML = `
-          <span class="w-4 h-1 rounded shrink-0" style="background-color: ${style.color}"></span>
-          <span class="truncate" title="${name}">${name}</span>
+          <span class="w-4 h-1 rounded shrink-0" style="background-color: ${conf.color}"></span>
+          <span class="truncate" title="${conf.name}">${conf.name} (${fclass})</span>
         `;
         legendContainer.appendChild(item);
+      });
+
+      // 기타 클래스가 존재할 경우 하단 추가
+      fclassSet.forEach(fclass => {
+        if (!roadOrder.includes(fclass)) {
+          const style = getRoadStyle(fclass);
+          const item = document.createElement('div');
+          item.className = 'flex items-center gap-2 truncate text-slate-400';
+          item.innerHTML = `
+            <span class="w-4 h-1 rounded shrink-0" style="background-color: ${style.color}"></span>
+            <span class="truncate">${fclass}</span>
+          `;
+          legendContainer.appendChild(item);
+        }
       });
 
       const count = data.features ? data.features.length : 1;
@@ -353,7 +424,7 @@
       document.getElementById('roadStatus').className = "text-[10px] text-emerald-400 font-mono bg-emerald-950/80 px-1.5 py-0.5 rounded border border-emerald-800";
     }
 
-    // Load Tour GeoJSON (Stroke Removed)
+    // Load Tour GeoJSON
     async function loadTourData(data) {
       if (tourLayer) map.removeLayer(tourLayer);
 
@@ -383,12 +454,12 @@
           return L.circleMarker(latlng, {
             radius: currentRadius,
             fillColor: color,
-            stroke: false, // 외곽선 삭제
+            stroke: false,
             fillOpacity: 0.9
           });
         },
         onEachFeature: (feature, layer) => {
-          layer.bindPopup(createPopupContent(feature.properties, '관광지 (tourdata)'));
+          layer.bindPopup(createPopupContent(feature.properties, 'tour'));
         }
       });
 
