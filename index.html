@@ -76,7 +76,7 @@
     <!-- LEFT-TOP Panel & Integrated Legend -->
     <div class="absolute top-4 left-4 z-10 w-80 max-h-[calc(100vh-6rem)] flex flex-col gap-3">
       
-      <!-- NEW: AI 자연어 오케스트레이터 입력 카드 -->
+      <!-- AI 자연어 오케스트레이터 입력 카드 -->
       <div class="bg-slate-900/95 backdrop-blur-md border border-indigo-500/40 rounded-2xl shadow-2xl overflow-hidden flex flex-col text-slate-200">
         <div class="p-3 bg-gradient-to-r from-indigo-900/50 to-slate-800/80 border-b border-indigo-500/30 flex items-center justify-between">
           <div class="flex items-center gap-2 font-bold text-xs text-indigo-300">
@@ -224,10 +224,39 @@
       attribution: '&copy; OpenStreetMap contributors'
     }).addTo(map);
 
-    // Layer Storage
+    // Layer Storage & Global Raw Data Storage for Search
     let tourLayer = null;
     let adminLayer = null;
     let roadLayer = null;
+
+    let adminRawGeoJSON = null;
+
+    // Region Reference Coordinates (대한민국 주요 시도 및 주요 시군구 좌표 사전)
+    const knownRegionCoords = {
+      '서울': [37.5665, 126.9780, 11],
+      '서울특별시': [37.5665, 126.9780, 11],
+      '강남구': [37.4979, 127.0276, 14],
+      '서초구': [37.4837, 127.0324, 14],
+      '송파구': [37.5145, 127.1061, 14],
+      '종로구': [37.5730, 126.9794, 14],
+      '부산': [35.1796, 129.0756, 11],
+      '부산광역시': [35.1796, 129.0756, 11],
+      '대구': [35.8714, 128.6014, 11],
+      '인천': [37.4563, 126.7052, 11],
+      '광주': [35.1595, 126.8526, 11],
+      '대전': [36.3504, 127.3845, 11],
+      '울산': [35.5384, 129.3114, 11],
+      '세종': [36.4800, 127.2890, 12],
+      '경기도': [37.4138, 127.5183, 9],
+      '강원도': [37.8228, 128.1555, 9],
+      '충청북도': [36.6357, 127.4913, 9],
+      '충청남도': [36.5184, 126.8000, 9],
+      '전라북도': [35.7175, 127.1530, 9],
+      '전라남도': [34.8679, 126.9910, 9],
+      '경상북도': [36.5760, 128.5056, 9],
+      '경상남도': [35.4606, 128.2132, 9],
+      '제주': [33.4996, 126.5312, 10]
+    };
 
     // Preset Color Palettes
     const sidoColorMap = {};
@@ -367,6 +396,7 @@
     // --- 2. LOAD GEOJSON FILES ---
 
     async function loadAdminData(data) {
+      adminRawGeoJSON = data;
       if (adminLayer) map.removeLayer(adminLayer);
       
       const sidoSet = new Set();
@@ -638,13 +668,71 @@
       });
     });
 
-    // --- 3. AI 오케스트레이터 연동 로직 ---
+    // --- 3. AI 오케스트레이터 연동 및 지도 시점(Center & Zoom) 확대 이동 로직 ---
     const aiPromptInput = document.getElementById('aiPromptInput');
     const btnSendPrompt = document.getElementById('btnSendPrompt');
     const aiResultCard = document.getElementById('aiResultCard');
     const aiIntentBadge = document.getElementById('aiIntentBadge');
     const aiExplanation = document.getElementById('aiExplanation');
     const aiJsonViewer = document.getElementById('aiJsonViewer');
+
+    // 파싱된 결과를 바탕으로 지도의 시점 및 줌 레벨을 자동 확장/이동
+    function updateMapExtentByCommand(cmd) {
+      let targetCenter = null;
+      let targetZoom = 13; // 기본 확대 Zoom 레벨
+
+      const regionName = cmd.parameters?.region;
+
+      // 1. adminGeoJSON 데이터 내에서 시군구/시도 명칭 매칭 검색
+      if (regionName && adminRawGeoJSON && adminRawGeoJSON.features) {
+        const matchedFeature = adminRawGeoJSON.features.find(f => {
+          const properties = f.properties || {};
+          const sido = properties.sido || properties.CTP_KOR_NM || '';
+          const sigungu = properties.sigungu_nm || properties.SIGUNGU_NM || '';
+          return (sido && sido.includes(regionName)) || (sigungu && sigungu.includes(regionName)) || regionName.includes(sigungu);
+        });
+
+        if (matchedFeature) {
+          const tempLayer = L.geoJSON(matchedFeature);
+          map.flyToBounds(tempLayer.getBounds(), {
+            padding: [50, 50],
+            duration: 1.5,
+            maxZoom: 14
+          });
+          showToast(`지도를 [${regionName}] 영역으로 확대합니다.`, "fa-magnifying-glass-location text-indigo-400", true);
+          return;
+        }
+      }
+
+      // 2. 사전에 정의된 주요 지역 좌표 딕셔너리 검색
+      if (regionName) {
+        for (const [key, val] of Object.entries(knownRegionCoords)) {
+          if (regionName.includes(key) || key.includes(regionName)) {
+            targetCenter = [val[0], val[1]];
+            targetZoom = val[2];
+            break;
+          }
+        }
+      }
+
+      // 3. 버퍼 거리(Buffer Radius)가 설정되어 있는 경우 Zoom Level 미세 조정
+      const bufferDist = cmd.parameters?.buffer_distance_m;
+      if (bufferDist) {
+        if (bufferDist <= 300) targetZoom = 16;
+        else if (bufferDist <= 1000) targetZoom = 14;
+        else if (bufferDist <= 5000) targetZoom = 12;
+        else targetZoom = 10;
+      }
+
+      // 지도 시점 애니메이션 이동 (FlyTo)
+      if (targetCenter) {
+        map.flyTo(targetCenter, targetZoom, { duration: 1.5 });
+        showToast(`지도를 [${regionName}] (줌 레벨: ${targetZoom})로 이동 및 확대했습니다.`, "fa-magnifying-glass-location text-indigo-400", true);
+      } else {
+        // 지역 추출 실패 시 현재 활성화된 레이어 전체 Extent로 맞춤
+        fitAllExtent();
+      }
+    }
 
     // 예시 태그 클릭 시 입력창 반영
     document.querySelectorAll('.example-tag').forEach(tagBtn => {
@@ -676,13 +764,15 @@
         if (resData.success && resData.command) {
           const cmd = resData.command;
 
-          // 파싱 결과 화면에 표출
+          // 파싱 결과 화면 표출
           aiResultCard.classList.remove('hidden');
           aiIntentBadge.innerText = cmd.intent.toUpperCase();
           aiExplanation.innerText = cmd.explanation;
           aiJsonViewer.innerText = JSON.stringify(cmd, null, 2);
 
-          showToast("AI 공간분석 파싱 성공!", "fa-check text-emerald-400", true);
+          // 지도의 시점/줌 레벨 자동 이동 및 확대 적용
+          updateMapExtentByCommand(cmd);
+
         } else {
           throw new Error(resData.error || '파싱 결과가 유효하지 않습니다.');
         }
@@ -749,5 +839,7 @@
     window.addEventListener('DOMContentLoaded', autoFetchGeoJSONFiles);
 
   </script>
+</body>
+</html>
 </body>
 </html>
