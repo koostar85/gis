@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>대한민국 Web GIS 지도 서비스</title>
+  <title>대한민국 공간정보 Web GIS Service</title>
 
   <!-- Leaflet CSS & JS -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
@@ -14,87 +14,67 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
 
   <style>
-    /* Google Noto Sans KR Font */
     @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&display=swap');
-    body {
-      font-family: 'Noto Sans KR', sans-serif;
-    }
+    body { font-family: 'Noto Sans KR', sans-serif; }
 
-    /* Scrollbar Styling */
-    ::-webkit-scrollbar {
-      width: 6px;
-      height: 6px;
-    }
-    ::-webkit-scrollbar-track {
-      background: #f1f5f9;
-    }
-    ::-webkit-scrollbar-thumb {
-      background: #cbd5e1;
-      border-radius: 3px;
-    }
-    ::-webkit-scrollbar-thumb:hover {
-      background: #94a3b8;
-    }
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #0f172a; }
+    ::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: #475569; }
 
-    /* Custom Map Popups */
+    /* Custom Leaflet Popup */
     .leaflet-popup-content-wrapper {
       padding: 0;
       border-radius: 12px;
       overflow: hidden;
-      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.15), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+      background: #ffffff;
     }
     .leaflet-popup-content {
       margin: 0 !important;
-      width: 300px !important;
+      width: 280px !important;
     }
-    .leaflet-popup-tip {
-      background: white;
-    }
+    .leaflet-popup-tip { background: #ffffff; }
   </style>
 </head>
-<body class="bg-slate-900 h-screen w-screen overflow-hidden flex flex-col antialiased">
+<body class="bg-slate-950 h-screen w-screen overflow-hidden flex flex-col antialiased">
 
-  <!-- Header Bar -->
+  <!-- Header -->
   <header class="bg-slate-900 border-b border-slate-800 text-white h-14 flex items-center justify-between px-4 z-20 shrink-0 shadow-lg">
     <div class="flex items-center gap-3">
-      <div class="bg-indigo-600 text-white p-2 rounded-lg flex items-center justify-center w-8 h-8 font-bold">
+      <div class="bg-indigo-600 text-white p-2 rounded-lg flex items-center justify-center w-8 h-8 font-bold shadow-md shadow-indigo-600/30">
         <i class="fa-solid fa-map-location-dot"></i>
       </div>
       <div>
-        <h1 class="font-bold text-base tracking-wide flex items-center gap-2">
+        <h1 class="font-bold text-sm sm:text-base tracking-wide flex items-center gap-2">
           대한민국 공간정보 Web GIS
-          <span class="text-xs font-normal text-emerald-400 bg-emerald-950 border border-emerald-800 px-2 py-0.5 rounded-full">v2.0</span>
+          <span class="text-[10px] font-normal text-emerald-400 bg-emerald-950 border border-emerald-800 px-2 py-0.5 rounded-full">GeoJSON 자동로드</span>
         </h1>
       </div>
     </div>
 
-    <!-- Search Box -->
-    <div class="relative w-72 md:w-96">
-      <input type="text" id="searchInput" placeholder="장소, 행정구역, 도로명 검색..." 
-        class="w-full bg-slate-800 border border-slate-700 text-slate-200 placeholder-slate-400 text-xs rounded-full pl-9 pr-8 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all">
-      <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-slate-400 text-xs"></i>
-      <button id="clearSearch" class="hidden absolute right-2.5 top-2 text-slate-400 hover:text-white text-xs">
-        <i class="fa-solid fa-xmark"></i>
-      </button>
-      
-      <!-- Auto Complete Dropdown -->
-      <div id="searchResults" class="hidden absolute left-0 right-0 top-full mt-1 bg-slate-800 border border-slate-700 rounded-xl shadow-2xl overflow-hidden max-h-60 overflow-y-auto z-50"></div>
-    </div>
-
-    <div class="flex items-center gap-2 text-xs text-slate-400">
-      <span class="hidden sm:inline"><i class="fa-regular fa-clock mr-1"></i>데이터 실시간 동기화</span>
+    <!-- Direct File Input (Backup Option) -->
+    <div class="flex items-center gap-2">
+      <label for="manualFileInput" class="cursor-pointer bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 px-3 py-1.5 rounded-lg text-xs font-medium transition flex items-center gap-1.5">
+        <i class="fa-solid fa-folder-open text-indigo-400"></i>
+        <span class="hidden sm:inline">수동 수급 (선택)</span>
+      </label>
+      <input type="file" id="manualFileInput" multiple accept=".geojson,.json" class="hidden">
     </div>
   </header>
 
-  <!-- Main Map Area -->
+  <!-- Main Map Container -->
   <div class="relative flex-1 w-full h-full">
-    <!-- Leaflet Map Container -->
     <div id="map" class="w-full h-full z-0 bg-slate-950"></div>
 
-    <!-- Right Sidebar Controls (Layers & Legend - Filter disabled per request) -->
-    <div class="absolute top-4 right-4 z-10 w-80 max-h-[calc(100vh-6rem)] flex flex-col gap-3 pointer-events-auto">
-      
-      <!-- Main Layer Toggle & Integrated Legend Box -->
+    <!-- Status Toast Notification -->
+    <div id="toast" class="absolute bottom-6 left-1/2 -translate-x-1/2 z-30 bg-slate-900/90 border border-slate-700 text-white px-4 py-2 rounded-full text-xs shadow-2xl backdrop-blur-md flex items-center gap-2 transition-all duration-300 opacity-0 pointer-events-none">
+      <i id="toastIcon" class="fa-solid fa-circle-notch fa-spin text-indigo-400"></i>
+      <span id="toastMsg">GeoJSON 파일을 로드하는 중입니다...</span>
+    </div>
+
+    <!-- Right Control Panel & Integrated Legend -->
+    <div class="absolute top-4 right-4 z-10 w-80 max-h-[calc(100vh-6rem)] flex flex-col gap-3">
       <div class="bg-slate-900/95 backdrop-blur-md border border-slate-800 rounded-2xl shadow-2xl overflow-hidden flex flex-col text-slate-200">
         
         <!-- Header -->
@@ -108,22 +88,22 @@
           </button>
         </div>
 
-        <div id="panelContent" class="p-3 overflow-y-auto space-y-4 max-h-[calc(100vh-12rem)]">
+        <div id="panelContent" class="p-3 overflow-y-auto space-y-3.5 max-h-[calc(100vh-12rem)]">
           
-          <!-- Layer 1: 관광지 데이터 -->
+          <!-- Layer 1: tourdata.geojson -->
           <div class="bg-slate-800/40 border border-slate-700/50 rounded-xl p-3">
             <div class="flex items-center justify-between mb-2">
               <label class="flex items-center gap-2.5 cursor-pointer font-semibold text-xs text-white">
                 <input type="checkbox" id="layerTour" checked class="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 bg-slate-700 border-slate-600">
                 <span class="flex items-center gap-1.5">
                   <i class="fa-solid fa-location-dot text-indigo-400"></i>
-                  관광지 (포인트)
+                  관광지 (tourdata)
                 </span>
               </label>
-              <span class="text-[10px] text-slate-400 font-mono bg-slate-800 px-1.5 py-0.5 rounded" id="tourCount">0건</span>
+              <span id="tourStatus" class="text-[10px] text-slate-400 font-mono bg-slate-800 px-1.5 py-0.5 rounded">불러오는 중...</span>
             </div>
             
-            <!-- Dynamic Legend Display Only (No sub-filters) -->
+            <!-- Dynamic Legend Display -->
             <div class="pl-6 pt-1 space-y-1.5 text-xs text-slate-300">
               <div class="flex items-center gap-2">
                 <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block ring-2 ring-emerald-500/30"></span>
@@ -140,86 +120,56 @@
             </div>
           </div>
 
-          <!-- Layer 2: 행정구역 -->
+          <!-- Layer 2: admin.geojson -->
           <div class="bg-slate-800/40 border border-slate-700/50 rounded-xl p-3">
             <div class="flex items-center justify-between mb-2">
               <label class="flex items-center gap-2.5 cursor-pointer font-semibold text-xs text-white">
                 <input type="checkbox" id="layerAdmin" checked class="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 bg-slate-700 border-slate-600">
                 <span class="flex items-center gap-1.5">
                   <i class="fa-solid fa-draw-polygon text-purple-400"></i>
-                  행정구역 (시도)
+                  행정구역 (admin)
                 </span>
               </label>
-              <span class="text-[10px] text-slate-400 font-mono bg-slate-800 px-1.5 py-0.5 rounded" id="adminCount">0건</span>
+              <span id="adminStatus" class="text-[10px] text-slate-400 font-mono bg-slate-800 px-1.5 py-0.5 rounded">불러오는 중...</span>
             </div>
             
-            <!-- Legend Display -->
-            <div class="pl-6 pt-1 grid grid-cols-2 gap-1.5 text-xs text-slate-300">
+            <div class="pl-6 pt-1 space-y-1.5 text-xs text-slate-300">
               <div class="flex items-center gap-2">
-                <span class="w-3 h-2.5 rounded-sm bg-blue-500/60 border border-blue-400 inline-block"></span>
-                <span>서울특별시</span>
-              </div>
-              <div class="flex items-center gap-2">
-                <span class="w-3 h-2.5 rounded-sm bg-teal-500/60 border border-teal-400 inline-block"></span>
-                <span>경기도</span>
-              </div>
-              <div class="flex items-center gap-2">
-                <span class="w-3 h-2.5 rounded-sm bg-indigo-500/60 border border-indigo-400 inline-block"></span>
-                <span>강원특별자치도</span>
-              </div>
-              <div class="flex items-center gap-2">
-                <span class="w-3 h-2.5 rounded-sm bg-amber-500/60 border border-amber-400 inline-block"></span>
-                <span>충청북도</span>
-              </div>
-              <div class="flex items-center gap-2">
-                <span class="w-3 h-2.5 rounded-sm bg-emerald-500/60 border border-emerald-400 inline-block"></span>
-                <span>전라남도</span>
-              </div>
-              <div class="flex items-center gap-2">
-                <span class="w-3 h-2.5 rounded-sm bg-rose-500/60 border border-rose-400 inline-block"></span>
-                <span>경상북도</span>
+                <span class="w-3.5 h-2.5 rounded bg-purple-500/30 border border-purple-400 inline-block"></span>
+                <span>행정구역 경계 (Polygon)</span>
               </div>
             </div>
           </div>
 
-          <!-- Layer 3: 주요 도로망 -->
+          <!-- Layer 3: road.geojson -->
           <div class="bg-slate-800/40 border border-slate-700/50 rounded-xl p-3">
             <div class="flex items-center justify-between mb-2">
               <label class="flex items-center gap-2.5 cursor-pointer font-semibold text-xs text-white">
                 <input type="checkbox" id="layerRoad" checked class="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 bg-slate-700 border-slate-600">
                 <span class="flex items-center gap-1.5">
                   <i class="fa-solid fa-route text-amber-400"></i>
-                  도로망 네트워크
+                  도로망 (road)
                 </span>
               </label>
-              <span class="text-[10px] text-slate-400 font-mono bg-slate-800 px-1.5 py-0.5 rounded" id="roadCount">0건</span>
+              <span id="roadStatus" class="text-[10px] text-slate-400 font-mono bg-slate-800 px-1.5 py-0.5 rounded">불러오는 중...</span>
             </div>
             
-            <!-- Legend Display -->
             <div class="pl-6 pt-1 space-y-1.5 text-xs text-slate-300">
               <div class="flex items-center gap-2">
-                <span class="w-4 h-1 bg-red-500 rounded inline-block"></span>
-                <span>고속도로 (Motorway)</span>
-              </div>
-              <div class="flex items-center gap-2">
-                <span class="w-4 h-0.5 bg-orange-400 inline-block"></span>
-                <span>주요 국도 (Trunk)</span>
-              </div>
-              <div class="flex items-center gap-2">
-                <span class="w-4 h-0.5 bg-amber-300 inline-block border-t border-dashed border-slate-900"></span>
-                <span>지방도/일반도로 (Primary)</span>
+                <span class="w-4 h-1 bg-amber-500 rounded inline-block"></span>
+                <span>도로망 네트워크 (Line)</span>
               </div>
             </div>
           </div>
 
           <!-- BaseMap Selector -->
           <div class="pt-2 border-t border-slate-800">
-            <label class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block mb-2">배경 지도 선택</label>
+            <label class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block mb-2">배경 지도 스타일</label>
             <div class="grid grid-cols-2 gap-2">
-              <button id="bmDark" class="px-2.5 py-1.5 text-xs rounded-lg bg-indigo-600 text-white font-medium transition flex items-center justify-center gap-1.5 shadow">
+              <button id="bmDark" class="px-2 py-1.5 text-xs rounded-lg bg-indigo-600 text-white font-medium transition flex items-center justify-center gap-1.5">
                 <i class="fa-solid fa-moon"></i> 다크 모드
               </button>
-              <button id="bmOsm" class="px-2.5 py-1.5 text-xs rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700 font-medium transition flex items-center justify-center gap-1.5">
+              <button id="bmOsm" class="px-2 py-1.5 text-xs rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700 font-medium transition flex items-center justify-center gap-1.5">
                 <i class="fa-solid fa-sun"></i> 일반 표준
               </button>
             </div>
@@ -227,237 +177,30 @@
 
         </div>
       </div>
-
     </div>
 
-    <!-- Map Quick Action Floating Buttons (Left Side) -->
+    <!-- Quick Action Floating Tools -->
     <div class="absolute top-4 left-4 z-10 flex flex-col gap-2">
-      <button id="btnZoomExtent" title="전체 영역으로 이동" class="w-9 h-9 bg-slate-900/90 text-slate-200 hover:text-white hover:bg-slate-800 border border-slate-700 rounded-xl flex items-center justify-center shadow-lg transition backdrop-blur-md">
+      <button id="btnZoomExtent" title="전체 레이어 영역 맞춤" class="w-9 h-9 bg-slate-900/90 text-slate-200 hover:text-white hover:bg-slate-800 border border-slate-700 rounded-xl flex items-center justify-center shadow-lg transition backdrop-blur-md">
         <i class="fa-solid fa-compress"></i>
       </button>
-      <button id="btnResetView" title="기본 위치 (서울) 이동" class="w-9 h-9 bg-slate-900/90 text-slate-200 hover:text-white hover:bg-slate-800 border border-slate-700 rounded-xl flex items-center justify-center shadow-lg transition backdrop-blur-md">
+      <button id="btnResetView" title="기본 위치 이동" class="w-9 h-9 bg-slate-900/90 text-slate-200 hover:text-white hover:bg-slate-800 border border-slate-700 rounded-xl flex items-center justify-center shadow-lg transition backdrop-blur-md">
         <i class="fa-solid fa-house"></i>
       </button>
     </div>
-
   </div>
 
-  <!-- Application Logic -->
+  <!-- JavaScript App Logic -->
   <script>
-    // --- 1. GEOJSON SAMPLE DATA ---
-    
-    // Tour Data Points (Only 3 required categories)
-    const tourdata = {
-      "type": "FeatureCollection",
-      "features": [
-        {
-          "type": "Feature",
-          "properties": {
-            "name": "경복궁",
-            "mcate_cd_prefix3_nm": "역사/문화유산",
-            "addr": "서울특별시 종로구 사직로 161",
-            "tel": "02-3700-3900"
-          },
-          "geometry": { "type": "Point", "coordinates": [126.9770, 37.5796] }
-        },
-        {
-          "type": "Feature",
-          "properties": {
-            "name": "남산서울타워",
-            "mcate_cd_prefix3_nm": "자연/여가/관광명소",
-            "addr": "서울특별시 용산구 남산공원길 105",
-            "tel": "02-3455-9277"
-          },
-          "geometry": { "type": "Point", "coordinates": [126.9882, 37.5512] }
-        },
-        {
-          "type": "Feature",
-          "properties": {
-            "name": "서울관광플라자",
-            "mcate_cd_prefix3_nm": "여행/행사/안내",
-            "addr": "서울특별시 종로구 청계천로 85",
-            "tel": "02-120"
-          },
-          "geometry": { "type": "Point", "coordinates": [126.9850, 37.5685] }
-        },
-        {
-          "type": "Feature",
-          "properties": {
-            "name": "설악산 국립공원",
-            "mcate_cd_prefix3_nm": "자연/여가/관광명소",
-            "addr": "강원특별자치도 속초시 설악산로 1091",
-            "tel": "033-801-0900"
-          },
-          "geometry": { "type": "Point", "coordinates": [128.4656, 38.1194] }
-        },
-        {
-          "type": "Feature",
-          "properties": {
-            "name": "불국사",
-            "mcate_cd_prefix3_nm": "역사/문화유산",
-            "addr": "경상북도 경주시 불국로 385",
-            "tel": "054-746-9913"
-          },
-          "geometry": { "type": "Point", "coordinates": [129.3318, 35.7901] }
-        },
-        {
-          "type": "Feature",
-          "properties": {
-            "name": "해운대 해수욕장",
-            "mcate_cd_prefix3_nm": "자연/여가/관광명소",
-            "addr": "부산광역시 해운대구 우동",
-            "tel": "051-749-5700"
-          },
-          "geometry": { "type": "Point", "coordinates": [129.1586, 35.1587] }
-        },
-        {
-          "type": "Feature",
-          "properties": {
-            "name": "전주 한옥마을 안내소",
-            "mcate_cd_prefix3_nm": "여행/행사/안내",
-            "addr": "전북특별자치도 전주시 완산구 기린대로 99",
-            "tel": "063-282-1330"
-          },
-          "geometry": { "type": "Point", "coordinates": [127.1522, 35.8150] }
-        },
-        {
-          "type": "Feature",
-          "properties": {
-            "name": "성산일출봉",
-            "mcate_cd_prefix3_nm": "자연/여가/관광명소",
-            "addr": "제주특별자치도 서귀포시 성산읍 성산리",
-            "tel": "064-783-0959"
-          },
-          "geometry": { "type": "Point", "coordinates": [126.9425, 33.4581] }
-        },
-        {
-          "type": "Feature",
-          "properties": {
-            "name": "안동하회마을",
-            "mcate_cd_prefix3_nm": "역사/문화유산",
-            "addr": "경상북도 안동시 풍천면 하회종가길 2-1",
-            "tel": "054-853-0103"
-          },
-          "geometry": { "type": "Point", "coordinates": [128.5173, 36.5387] }
-        },
-        {
-          "type": "Feature",
-          "properties": {
-            "name": "강릉 경포대 관광안내센터",
-            "mcate_cd_prefix3_nm": "여행/행사/안내",
-            "addr": "강원특별자치도 강릉시 경포로 365",
-            "tel": "033-640-4414"
-          },
-          "geometry": { "type": "Point", "coordinates": [128.8965, 37.7951] }
-        }
-      ]
-    };
-
-    // Admin Boundaries (Polygons)
-    const adminData = {
-      "type": "FeatureCollection",
-      "features": [
-        {
-          "type": "Feature",
-          "properties": { "sido": "서울특별시", "code": "11" },
-          "geometry": {
-            "type": "Polygon",
-            "coordinates": [[[126.8, 37.7], [127.18, 37.7], [127.18, 37.45], [126.8, 37.45], [126.8, 37.7]]]
-          }
-        },
-        {
-          "type": "Feature",
-          "properties": { "sido": "경기도", "code": "41" },
-          "geometry": {
-            "type": "Polygon",
-            "coordinates": [[[126.3, 38.0], [127.8, 38.0], [127.8, 36.9], [126.3, 36.9], [126.3, 38.0]]]
-          }
-        },
-        {
-          "type": "Feature",
-          "properties": { "sido": "강원특별자치도", "code": "51" },
-          "geometry": {
-            "type": "Polygon",
-            "coordinates": [[[127.8, 38.6], [129.4, 38.6], [129.4, 37.1], [127.8, 37.1], [127.8, 38.6]]]
-          }
-        },
-        {
-          "type": "Feature",
-          "properties": { "sido": "충청북도", "code": "43" },
-          "geometry": {
-            "type": "Polygon",
-            "coordinates": [[[127.3, 37.2], [128.6, 37.2], [128.6, 36.0], [127.3, 36.0], [127.3, 37.2]]]
-          }
-        },
-        {
-          "type": "Feature",
-          "properties": { "sido": "전라남도", "code": "46" },
-          "geometry": {
-            "type": "Polygon",
-            "coordinates": [[[126.0, 35.3], [127.8, 35.3], [127.8, 34.2], [126.0, 34.2], [126.0, 35.3]]]
-          }
-        },
-        {
-          "type": "Feature",
-          "properties": { "sido": "경상북도", "code": "47" },
-          "geometry": {
-            "type": "Polygon",
-            "coordinates": [[[128.0, 37.2], [129.6, 37.2], [129.6, 35.6], [128.0, 35.6], [128.0, 37.2]]]
-          }
-        }
-      ]
-    };
-
-    // Road Data (LineStrings)
-    const roadData = {
-      "type": "FeatureCollection",
-      "features": [
-        {
-          "type": "Feature",
-          "properties": { "name": "경부고속도로", "fclass": "motorway" },
-          "geometry": {
-            "type": "LineString",
-            "coordinates": [[127.01, 37.52], [127.10, 37.35], [127.15, 36.81], [127.42, 36.35], [129.08, 35.23]]
-          }
-        },
-        {
-          "type": "Feature",
-          "properties": { "name": "영동고속도로", "fclass": "motorway" },
-          "geometry": {
-            "type": "LineString",
-            "coordinates": [[126.73, 37.35], [127.20, 37.23], [127.90, 37.25], [128.89, 37.75]]
-          }
-        },
-        {
-          "type": "Feature",
-          "properties": { "name": "1번 국도", "fclass": "trunk" },
-          "geometry": {
-            "type": "LineString",
-            "coordinates": [[126.92, 37.55], [127.00, 37.15], [127.05, 36.80], [126.85, 35.15]]
-          }
-        },
-        {
-          "type": "Feature",
-          "properties": { "name": "7번 국도", "fclass": "primary" },
-          "geometry": {
-            "type": "LineString",
-            "coordinates": [[129.35, 35.55], [129.40, 36.00], [129.41, 37.50], [128.60, 38.30]]
-          }
-        }
-      ]
-    };
-
-    // --- 2. MAP INITIALIZATION ---
+    // --- 1. INITIALIZE MAP & BASE TILES ---
     const map = L.map('map', {
       center: [36.3, 127.8],
       zoom: 7,
       zoomControl: false
     });
 
-    // Zoom buttons repositioning
     L.control.zoom({ position: 'bottomright' }).addTo(map);
 
-    // Tile Layers
     const darkTile = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
       maxZoom: 19,
       attribution: '&copy; OpenStreetMap &copy; CARTO'
@@ -468,168 +211,263 @@
       attribution: '&copy; OpenStreetMap contributors'
     });
 
-    // Map Base Style Controls
     document.getElementById('bmDark').addEventListener('click', function() {
       map.removeLayer(osmTile);
       map.addLayer(darkTile);
-      this.className = "px-2.5 py-1.5 text-xs rounded-lg bg-indigo-600 text-white font-medium transition flex items-center justify-center gap-1.5 shadow";
-      document.getElementById('bmOsm').className = "px-2.5 py-1.5 text-xs rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700 font-medium transition flex items-center justify-center gap-1.5";
+      this.className = "px-2 py-1.5 text-xs rounded-lg bg-indigo-600 text-white font-medium transition flex items-center justify-center gap-1.5";
+      document.getElementById('bmOsm').className = "px-2 py-1.5 text-xs rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700 font-medium transition flex items-center justify-center gap-1.5";
     });
 
     document.getElementById('bmOsm').addEventListener('click', function() {
       map.removeLayer(darkTile);
       map.addLayer(osmTile);
-      this.className = "px-2.5 py-1.5 text-xs rounded-lg bg-indigo-600 text-white font-medium transition flex items-center justify-center gap-1.5 shadow";
-      document.getElementById('bmDark').className = "px-2.5 py-1.5 text-xs rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700 font-medium transition flex items-center justify-center gap-1.5";
+      this.className = "px-2 py-1.5 text-xs rounded-lg bg-indigo-600 text-white font-medium transition flex items-center justify-center gap-1.5";
+      document.getElementById('bmDark').className = "px-2 py-1.5 text-xs rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700 font-medium transition flex items-center justify-center gap-1.5";
     });
 
-    // --- 3. COLOR HELPER FUNCTIONS ---
-    function getTourColor(category) {
-      switch (category) {
-        case '자연/여가/관광명소': return '#10b981'; // Emerald
-        case '여행/행사/안내': return '#f59e0b';     // Amber
-        case '역사/문화유산': return '#6366f1';     // Indigo
-        default: return '#94a3b8';
+    // Layer Storage
+    let tourLayer = null;
+    let adminLayer = null;
+    let roadLayer = null;
+
+    // Toast Notification Helper
+    function showToast(msg, iconClass = "fa-circle-notch fa-spin", autoHide = false) {
+      const toast = document.getElementById('toast');
+      const toastMsg = document.getElementById('toastMsg');
+      const toastIcon = document.getElementById('toastIcon');
+
+      toastMsg.innerText = msg;
+      toastIcon.className = `fa-solid ${iconClass} text-indigo-400`;
+      toast.classList.remove('opacity-0', 'pointer-events-none');
+
+      if (autoHide) {
+        setTimeout(() => {
+          toast.classList.add('opacity-0', 'pointer-events-none');
+        }, 3000);
       }
     }
-
-    function getAdminColor(sido) {
-      switch (sido) {
-        case '서울특별시': return '#3b82f6';
-        case '경기도': return '#14b8a6';
-        case '강원특별자치도': return '#6366f1';
-        case '충청북도': return '#f59e0b';
-        case '전라남도': return '#10b981';
-        case '경상북도': return '#f43f5e';
-        default: return '#64748b';
-      }
-    }
-
-    function getRoadStyle(fclass) {
-      switch (fclass) {
-        case 'motorway': return { color: '#ef4444', weight: 4.5, opacity: 0.9 }; // Red
-        case 'trunk': return { color: '#fb923c', weight: 3, opacity: 0.85 };    // Orange
-        case 'primary': return { color: '#fde047', weight: 2, opacity: 0.8, dashArray: '4,4' }; // Yellow
-        default: return { color: '#cbd5e1', weight: 1.5, opacity: 0.7 };
-      }
-    }
-
-    // --- 4. LAYER CREATION & POPUPS ---
 
     // Popup Generator
-    function createCustomPopup(title, category, items) {
-      let rows = items.map(item => `
-        <tr class="border-b border-slate-100 last:border-none">
-          <td class="py-1.5 text-slate-500 font-medium text-[11px] w-24">${item.label}</td>
-          <td class="py-1.5 text-slate-800 text-[11px] font-medium">${item.value}</td>
-        </tr>
-      `).join('');
+    function createPopupContent(properties, layerTitle) {
+      let rows = '';
+      for (const [key, val] of Object.entries(properties)) {
+        if (typeof val !== 'object') {
+          rows += `
+            <tr class="border-b border-slate-100 last:border-none">
+              <td class="py-1 px-2 text-slate-500 font-semibold text-[11px] bg-slate-50 w-28 break-all">${key}</td>
+              <td class="py-1 px-2 text-slate-800 text-[11px] font-normal break-all">${val !== null ? val : '-'}</td>
+            </tr>
+          `;
+        }
+      }
+
+      const title = properties.name || properties.sido || properties.title || properties.NM || layerTitle;
 
       return `
-        <div class="bg-white text-slate-800 rounded-xl overflow-hidden shadow-xl border border-slate-100">
-          <div class="bg-slate-900 text-white p-3">
-            <span class="text-[10px] uppercase font-bold tracking-wider text-indigo-400 block mb-0.5">${category}</span>
-            <h3 class="text-sm font-bold leading-snug">${title}</h3>
+        <div class="bg-white text-slate-800 rounded-xl overflow-hidden shadow-xl">
+          <div class="bg-slate-900 text-white px-3 py-2 border-b border-slate-800">
+            <span class="text-[10px] uppercase font-bold tracking-wider text-indigo-400 block">${layerTitle}</span>
+            <h3 class="text-xs font-bold leading-tight truncate">${title}</h3>
           </div>
-          <div class="p-3">
-            <table class="w-full">
-              <tbody>${rows}</tbody>
-            </table>
+          <div class="max-h-48 overflow-y-auto">
+            <table class="w-full text-left border-collapse">${rows}</table>
           </div>
         </div>
       `;
     }
 
-    // 1. Admin Layer (Polygon)
-    const adminLayer = L.geoJSON(adminData, {
-      style: function(feature) {
-        return {
-          fillColor: getAdminColor(feature.properties.sido),
+    // Color mapper for Tour Categories
+    function getTourColor(category) {
+      if (!category) return '#10b981';
+      if (category.includes('자연') || category.includes('여가') || category.includes('명소')) return '#10b981'; // Emerald
+      if (category.includes('여행') || category.includes('행사') || category.includes('안내')) return '#f59e0b'; // Amber
+      if (category.includes('역사') || category.includes('문화')) return '#6366f1'; // Indigo
+      return '#3b82f6';
+    }
+
+    // --- 2. LOAD GEOJSON FILES ---
+
+    // Load Admin GeoJSON
+    async function loadAdminData(data) {
+      if (adminLayer) map.removeLayer(adminLayer);
+      
+      adminLayer = L.geoJSON(data, {
+        style: {
+          fillColor: '#8b5cf6',
           fillOpacity: 0.15,
+          color: '#a855f7',
           weight: 1.5,
-          color: getAdminColor(feature.properties.sido),
           dashArray: '3,3'
+        },
+        onEachFeature: (feature, layer) => {
+          layer.on('mouseover', function() { this.setStyle({ fillOpacity: 0.35, weight: 2.5 }); });
+          layer.on('mouseout', function() { adminLayer.resetStyle(this); });
+          layer.bindPopup(createPopupContent(feature.properties, '행정구역 (admin)'));
+        }
+      }).addTo(map);
+
+      const count = data.features ? data.features.length : 1;
+      document.getElementById('adminStatus').innerText = `${count}개 객체`;
+      document.getElementById('adminStatus').className = "text-[10px] text-emerald-400 font-mono bg-emerald-950/80 px-1.5 py-0.5 rounded border border-emerald-800";
+    }
+
+    // Load Road GeoJSON
+    async function loadRoadData(data) {
+      if (roadLayer) map.removeLayer(roadLayer);
+
+      roadLayer = L.geoJSON(data, {
+        style: (feature) => {
+          const fclass = feature.properties?.fclass || '';
+          if (fclass === 'motorway') return { color: '#ef4444', weight: 3.5, opacity: 0.85 };
+          return { color: '#f59e0b', weight: 2, opacity: 0.8 };
+        },
+        onEachFeature: (feature, layer) => {
+          layer.bindPopup(createPopupContent(feature.properties, '도로망 (road)'));
+        }
+      }).addTo(map);
+
+      const count = data.features ? data.features.length : 1;
+      document.getElementById('roadStatus').innerText = `${count}개 객체`;
+      document.getElementById('roadStatus').className = "text-[10px] text-emerald-400 font-mono bg-emerald-950/80 px-1.5 py-0.5 rounded border border-emerald-800";
+    }
+
+    // Load Tour GeoJSON
+    async function loadTourData(data) {
+      if (tourLayer) map.removeLayer(tourLayer);
+
+      tourLayer = L.geoJSON(data, {
+        pointToLayer: (feature, latlng) => {
+          const cat = feature.properties?.mcate_cd_prefix3_nm || feature.properties?.category || '';
+          return L.circleMarker(latlng, {
+            radius: 6,
+            fillColor: getTourColor(cat),
+            color: '#ffffff',
+            weight: 1.5,
+            opacity: 1,
+            fillOpacity: 0.9
+          });
+        },
+        onEachFeature: (feature, layer) => {
+          layer.bindPopup(createPopupContent(feature.properties, '관광지 (tourdata)'));
+        }
+      }).addTo(map);
+
+      const count = data.features ? data.features.length : 1;
+      document.getElementById('tourStatus').innerText = `${count}개 객체`;
+      document.getElementById('tourStatus').className = "text-[10px] text-emerald-400 font-mono bg-emerald-950/80 px-1.5 py-0.5 rounded border border-emerald-800";
+    }
+
+    // Fit map bounds automatically to all active layers
+    function fitAllExtent() {
+      const group = L.featureGroup([adminLayer, roadLayer, tourLayer].filter(Boolean));
+      if (group.getLayers().length > 0) {
+        map.fitBounds(group.getBounds(), { padding: [30, 30] });
+      }
+    }
+
+    // Auto-fetch the 3 GeoJSON files from local directory
+    async function autoFetchGeoJSONFiles() {
+      showToast("동일 경로의 GeoJSON 파일 읽는 중...", "fa-spin fa-circle-notch");
+      
+      let loadedCount = 0;
+
+      // 1. Fetch tourdata.geojson
+      try {
+        const res = await fetch('./tourdata.geojson');
+        if (res.ok) {
+          const data = await res.json();
+          await loadTourData(data);
+          loadedCount++;
+        } else { throw new Error(); }
+      } catch (e) {
+        document.getElementById('tourStatus').innerText = "파일 없음";
+        document.getElementById('tourStatus').className = "text-[10px] text-rose-400 font-mono bg-rose-950/80 px-1.5 py-0.5 rounded border border-rose-800";
+      }
+
+      // 2. Fetch admin.geojson
+      try {
+        const res = await fetch('./admin.geojson');
+        if (res.ok) {
+          const data = await res.json();
+          await loadAdminData(data);
+          loadedCount++;
+        } else { throw new Error(); }
+      } catch (e) {
+        document.getElementById('adminStatus').innerText = "파일 없음";
+        document.getElementById('adminStatus').className = "text-[10px] text-rose-400 font-mono bg-rose-950/80 px-1.5 py-0.5 rounded border border-rose-800";
+      }
+
+      // 3. Fetch road.geojson
+      try {
+        const res = await fetch('./road.geojson');
+        if (res.ok) {
+          const data = await res.json();
+          await loadRoadData(data);
+          loadedCount++;
+        } else { throw new Error(); }
+      } catch (e) {
+        document.getElementById('roadStatus').innerText = "파일 없음";
+        document.getElementById('roadStatus').className = "text-[10px] text-rose-400 font-mono bg-rose-950/80 px-1.5 py-0.5 rounded border border-rose-800";
+      }
+
+      if (loadedCount > 0) {
+        fitAllExtent();
+        showToast("GeoJSON 레이어 로드 완료!", "fa-check text-emerald-400", true);
+      } else {
+        showToast("파일 자동 로드 실패. [수동 수급] 버튼을 사용하세요.", "fa-triangle-exclamation text-amber-400", true);
+      }
+    }
+
+    // Manual Local File Picker Fallback
+    document.getElementById('manualFileInput').addEventListener('change', function(e) {
+      const files = Array.from(e.target.files);
+      files.forEach(file => {
+        const reader = new FileReader();
+        reader.onload = function(event) {
+          try {
+            const data = JSON.parse(event.target.result);
+            const fname = file.name.toLowerCase();
+
+            if (fname.includes('tour')) loadTourData(data);
+            else if (fname.includes('admin')) loadAdminData(data);
+            else if (fname.includes('road')) loadRoadData(data);
+            else loadTourData(data); // default fallback
+
+            fitAllExtent();
+            showToast(`${file.name} 수동 로드 완료`, "fa-check text-emerald-400", true);
+          } catch (err) {
+            alert(`올바르지 않은 GeoJSON 파일 형태입니다: ${file.name}`);
+          }
         };
-      },
-      onEachFeature: function(feature, layer) {
-        layer.on('mouseover', function() {
-          this.setStyle({ fillOpacity: 0.4, weight: 2.5 });
-        });
-        layer.on('mouseout', function() {
-          adminLayer.resetStyle(this);
-        });
-        layer.bindPopup(createCustomPopup(feature.properties.sido, '행정구역 경계', [
-          { label: '행정구역명', value: feature.properties.sido },
-          { label: '지역 코드', value: feature.properties.code }
-        ]));
-      }
-    }).addTo(map);
+        reader.readAsText(file);
+      });
+    });
 
-    // 2. Road Layer (LineString)
-    const roadLayer = L.geoJSON(roadData, {
-      style: function(feature) {
-        return getRoadStyle(feature.properties.fclass);
-      },
-      onEachFeature: function(feature, layer) {
-        const roadTypeKor = feature.properties.fclass === 'motorway' ? '고속도로' : 
-                            feature.properties.fclass === 'trunk' ? '주요 국도' : '지방도/일반도로';
-        layer.bindPopup(createCustomPopup(feature.properties.name, '도로 정보', [
-          { label: '도로명', value: feature.properties.name },
-          { label: '도로 유형', value: roadTypeKor }
-        ]));
-      }
-    }).addTo(map);
-
-    // 3. Tour Layer (Points)
-    const tourLayer = L.geoJSON(tourdata, {
-      pointToLayer: function(feature, latlng) {
-        const color = getTourColor(feature.properties.mcate_cd_prefix3_nm);
-        return L.circleMarker(latlng, {
-          radius: 7,
-          fillColor: color,
-          color: '#ffffff',
-          weight: 2,
-          opacity: 1,
-          fillOpacity: 0.9
-        });
-      },
-      onEachFeature: function(feature, layer) {
-        layer.bindPopup(createCustomPopup(
-          feature.properties.name,
-          feature.properties.mcate_cd_prefix3_nm,
-          [
-            { label: '카테고리', value: feature.properties.mcate_cd_prefix3_nm },
-            { label: '주소', value: feature.properties.addr },
-            { label: '문의처', value: feature.properties.tel || '정보 없음' }
-          ]
-        ));
-      }
-    }).addTo(map);
-
-    // --- 5. UI CONTROLS & COUNTS ---
-
-    // Update Item Counts
-    document.getElementById('tourCount').innerText = `${tourdata.features.length}건`;
-    document.getElementById('adminCount').innerText = `${adminData.features.length}건`;
-    document.getElementById('roadCount').innerText = `${roadData.features.length}건`;
-
-    // Layer Toggle Events
-    document.getElementById('layerTour').addEventListener('change', function(e) {
+    // --- 3. UI EVENT LISTENERS ---
+    document.getElementById('layerTour').addEventListener('change', e => {
+      if (!tourLayer) return;
       if (e.target.checked) map.addLayer(tourLayer);
       else map.removeLayer(tourLayer);
     });
 
-    document.getElementById('layerAdmin').addEventListener('change', function(e) {
+    document.getElementById('layerAdmin').addEventListener('change', e => {
+      if (!adminLayer) return;
       if (e.target.checked) map.addLayer(adminLayer);
       else map.removeLayer(adminLayer);
     });
 
-    document.getElementById('layerRoad').addEventListener('change', function(e) {
+    document.getElementById('layerRoad').addEventListener('change', e => {
+      if (!roadLayer) return;
       if (e.target.checked) map.addLayer(roadLayer);
       else map.removeLayer(roadLayer);
     });
 
-    // Panel Collapse Toggle
+    document.getElementById('btnZoomExtent').addEventListener('click', fitAllExtent);
+    document.getElementById('btnResetView').addEventListener('click', () => {
+      map.setView([36.3, 127.8], 7);
+    });
+
+    // Panel Toggle
     const togglePanelBtn = document.getElementById('togglePanelBtn');
     const panelContent = document.getElementById('panelContent');
     let isPanelOpen = true;
@@ -640,110 +478,8 @@
       togglePanelBtn.innerHTML = isPanelOpen ? '<i class="fa-solid fa-chevron-up"></i>' : '<i class="fa-solid fa-chevron-down"></i>';
     });
 
-    // Navigation Buttons
-    document.getElementById('btnZoomExtent').addEventListener('click', () => {
-      const group = L.featureGroup([tourLayer, adminLayer, roadLayer]);
-      map.fitBounds(group.getBounds(), { padding: [30, 30] });
-    });
-
-    document.getElementById('btnResetView').addEventListener('click', () => {
-      map.setView([37.5665, 126.9780], 11);
-    });
-
-    // --- 6. SEARCH FUNCTIONALITY ---
-    const searchInput = document.getElementById('searchInput');
-    const searchResults = document.getElementById('searchResults');
-    const clearSearch = document.getElementById('clearSearch');
-
-    // Build Search Index
-    const searchIndex = [];
-
-    tourdata.features.forEach(f => {
-      searchIndex.push({
-        name: f.properties.name,
-        type: '관광지',
-        category: f.properties.mcate_cd_prefix3_nm,
-        coords: [f.geometry.coordinates[1], f.geometry.coordinates[0]],
-        layer: tourLayer
-      });
-    });
-
-    adminData.features.forEach(f => {
-      // Polygon center approximation
-      const coords = f.geometry.coordinates[0][0];
-      searchIndex.push({
-        name: f.properties.sido,
-        type: '행정구역',
-        category: '시도 Boundary',
-        coords: [coords[1], coords[0]],
-        layer: adminLayer
-      });
-    });
-
-    roadData.features.forEach(f => {
-      const coords = f.geometry.coordinates[0];
-      searchIndex.push({
-        name: f.properties.name,
-        type: '도로망',
-        category: '주요 도로',
-        coords: [coords[1], coords[0]],
-        layer: roadLayer
-      });
-    });
-
-    searchInput.addEventListener('input', (e) => {
-      const val = e.target.value.trim().toLowerCase();
-      
-      if (!val) {
-        searchResults.classList.add('hidden');
-        clearSearch.classList.add('hidden');
-        return;
-      }
-
-      clearSearch.classList.remove('hidden');
-      const matches = searchIndex.filter(item => item.name.toLowerCase().includes(val));
-
-      if (matches.length === 0) {
-        searchResults.innerHTML = `<div class="p-3 text-xs text-slate-400 text-center">검색 결과가 없습니다.</div>`;
-      } else {
-        searchResults.innerHTML = matches.map((item, idx) => `
-          <div data-idx="${idx}" class="search-item p-2.5 hover:bg-slate-700/80 cursor-pointer border-b border-slate-700/50 last:border-none flex items-center justify-between text-xs transition">
-            <div>
-              <span class="font-bold text-white block">${item.name}</span>
-              <span class="text-[10px] text-slate-400">${item.category}</span>
-            </div>
-            <span class="text-[10px] bg-slate-900 text-indigo-400 px-2 py-0.5 rounded-full border border-indigo-900">${item.type}</span>
-          </div>
-        `).join('');
-
-        // Item click handles
-        document.querySelectorAll('.search-item').forEach(el => {
-          el.addEventListener('click', () => {
-            const idx = el.getAttribute('data-idx');
-            const target = matches[idx];
-            
-            map.setView(target.coords, 14, { animate: true });
-            searchResults.classList.add('hidden');
-            searchInput.value = target.name;
-          });
-        });
-      }
-
-      searchResults.classList.remove('hidden');
-    });
-
-    clearSearch.addEventListener('click', () => {
-      searchInput.value = '';
-      searchResults.classList.add('hidden');
-      clearSearch.classList.add('hidden');
-    });
-
-    // Close search dropdown on click outside
-    document.addEventListener('click', (e) => {
-      if (!searchInput.contains(e.target) && !searchResults.contains(e.target)) {
-        searchResults.classList.add('hidden');
-      }
-    });
+    // Start Auto Loading on Page Load
+    window.addEventListener('DOMContentLoaded', autoFetchGeoJSONFiles);
 
   </script>
 </body>
