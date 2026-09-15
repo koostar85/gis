@@ -75,6 +75,60 @@
 
     <!-- LEFT-TOP Panel & Integrated Legend -->
     <div class="absolute top-4 left-4 z-10 w-80 max-h-[calc(100vh-6rem)] flex flex-col gap-3">
+      
+      <!-- NEW: AI 자연어 오케스트레이터 입력 카드 -->
+      <div class="bg-slate-900/95 backdrop-blur-md border border-indigo-500/40 rounded-2xl shadow-2xl overflow-hidden flex flex-col text-slate-200">
+        <div class="p-3 bg-gradient-to-r from-indigo-900/50 to-slate-800/80 border-b border-indigo-500/30 flex items-center justify-between">
+          <div class="flex items-center gap-2 font-bold text-xs text-indigo-300">
+            <i class="fa-solid fa-wand-magic-sparkles text-indigo-400 animate-pulse"></i>
+            <span>AI 공간분석 오케스트레이터</span>
+          </div>
+          <span class="text-[9px] bg-indigo-950 border border-indigo-700 text-indigo-300 px-1.5 py-0.5 rounded font-mono">Gemini API</span>
+        </div>
+        
+        <div class="p-3 space-y-2.5">
+          <!-- 자연어 입력창 -->
+          <div class="relative">
+            <textarea id="aiPromptInput" rows="2" placeholder="예: 서울특별시 강남구 고속도로 500m 반경 관광지 검색" class="w-full bg-slate-950 border border-slate-700 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-xl p-2.5 text-xs text-slate-100 placeholder-slate-500 resize-none outline-none transition"></textarea>
+            <button id="btnSendPrompt" class="absolute bottom-2 right-2 bg-indigo-600 hover:bg-indigo-500 text-white px-2.5 py-1 rounded-lg text-xs font-medium transition flex items-center gap-1 shadow-md">
+              <i class="fa-solid fa-paper-plane text-[10px]"></i>
+              <span>분석</span>
+            </button>
+          </div>
+
+          <!-- 자연어 예시 태그 -->
+          <div>
+            <div class="text-[10px] text-slate-400 mb-1 flex items-center gap-1">
+              <i class="fa-solid fa-lightbulb text-amber-400"></i> 입력 예시 (클릭 시 자동 입력):
+            </div>
+            <div class="flex flex-wrap gap-1">
+              <button class="example-tag text-[10px] bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 px-2 py-0.5 rounded-full transition">
+                강남구 고속도로 500m 주변 관광지
+              </button>
+              <button class="example-tag text-[10px] bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 px-2 py-0.5 rounded-full transition">
+                제한속도 80km 이상 국도 검색
+              </button>
+            </div>
+          </div>
+
+          <!-- AI 분석 결과 카드 영역 -->
+          <div id="aiResultCard" class="hidden bg-slate-950/80 border border-indigo-500/30 rounded-xl p-2.5 text-xs space-y-1.5">
+            <div class="flex items-center justify-between">
+              <span class="font-semibold text-indigo-400 text-[11px] flex items-center gap-1">
+                <i class="fa-solid fa-square-poll-vertical"></i> 분석 파싱 결과
+              </span>
+              <span id="aiIntentBadge" class="text-[9px] bg-indigo-900/60 text-indigo-200 border border-indigo-700/50 px-1.5 py-0.5 rounded font-mono">INTENT</span>
+            </div>
+            <p id="aiExplanation" class="text-slate-300 text-[11px] leading-relaxed"></p>
+            <details class="text-[10px] text-slate-400">
+              <summary class="cursor-pointer hover:text-slate-200 font-mono select-none">파라미터 JSON 보기</summary>
+              <pre id="aiJsonViewer" class="mt-1 p-2 bg-slate-900 rounded border border-slate-800 text-[9px] font-mono overflow-x-auto text-emerald-400 max-h-36"></pre>
+            </details>
+          </div>
+        </div>
+      </div>
+
+      <!-- 기존 레이어 및 범례 패널 -->
       <div class="bg-slate-900/95 backdrop-blur-md border border-slate-800 rounded-2xl shadow-2xl overflow-hidden flex flex-col text-slate-200">
         
         <!-- Header -->
@@ -93,7 +147,7 @@
           </div>
         </div>
 
-        <div id="panelContent" class="p-3 overflow-y-auto space-y-3.5 max-h-[calc(100vh-10rem)]">
+        <div id="panelContent" class="p-3 overflow-y-auto space-y-3.5 max-h-[calc(100vh-22rem)]">
           
           <!-- Layer 1: admin.geojson -->
           <div class="bg-slate-800/40 border border-slate-700/50 rounded-xl p-3">
@@ -238,12 +292,12 @@
       let fieldList = [];
 
       if (layerType === 'admin') {
-        const sigunguName = properties.SIGUNGU_NM || properties.sigungu_nm || '';
+        const sigunguName = properties.sigungu_nm || properties.SIGUNGU_NM || '';
         title = properties.sido ? `${properties.sido} ${sigunguName}` : (sigunguName || '행정구역 상세');
         
         fieldList = [
           { key: 'sido', label: '시도명' },
-          { key: 'SIGUNGU_NM', label: '시군구명', fallbackKey: 'sigungu_nm' },
+          { key: 'sigungu_nm', label: '시군구명', fallbackKey: 'SIGUNGU_NM' },
           { key: 'population', label: '인구' },
           { key: 'popden', label: '인구밀도' }
         ];
@@ -261,9 +315,9 @@
         title = properties.poi_nm || properties.title || '관광지 상세';
         
         fieldList = [
-          { key: 'mcate_cd_prefix3_nm', label: '대분류' },
-          { key: 'mcate_nm', label: '소분류' },
-          { key: 'address', label: '주소' }
+          { key: 'poi_nm', label: '관광지명' },
+          { key: 'mcate_cd_prefix3', label: '대분류' },
+          { key: 'mcate_nm', label: '소분류' }
         ];
       }
 
@@ -312,7 +366,6 @@
 
     // --- 2. LOAD GEOJSON FILES ---
 
-    // Load Admin GeoJSON
     async function loadAdminData(data) {
       if (adminLayer) map.removeLayer(adminLayer);
       
@@ -360,7 +413,6 @@
       document.getElementById('adminStatus').className = "text-[10px] text-emerald-400 font-mono bg-emerald-950/80 px-1.5 py-0.5 rounded border border-emerald-800";
     }
 
-    // Load Road GeoJSON
     async function loadRoadData(data) {
       if (roadLayer) map.removeLayer(roadLayer);
 
@@ -413,14 +465,13 @@
       document.getElementById('roadStatus').className = "text-[10px] text-emerald-400 font-mono bg-emerald-950/80 px-1.5 py-0.5 rounded border border-emerald-800";
     }
 
-    // Load Tour GeoJSON
     async function loadTourData(data) {
       if (tourLayer) map.removeLayer(tourLayer);
 
       const mcateCounts = {};
       if (data.features) {
         data.features.forEach(f => {
-          const cat = f.properties?.mcate_cd_prefix3_nm || f.properties?.category || '기타';
+          const cat = f.properties?.mcate_nm || f.properties?.mcate_cd_prefix3 || '기타';
           mcateCounts[cat] = (mcateCounts[cat] || 0) + 1;
         });
       }
@@ -437,7 +488,7 @@
 
       tourLayer = L.geoJSON(data, {
         pointToLayer: (feature, latlng) => {
-          const cat = feature.properties?.mcate_cd_prefix3_nm || feature.properties?.category || '';
+          const cat = feature.properties?.mcate_nm || feature.properties?.mcate_cd_prefix3 || '';
           const color = tourColorMap[cat] || tourColors[3];
 
           return L.circleMarker(latlng, {
@@ -492,7 +543,6 @@
         : "text-[10px] text-slate-400 font-mono bg-slate-800 px-1.5 py-0.5 rounded border border-slate-700";
     }
 
-    // Dynamic point size update on zoom
     map.on('zoomend', () => {
       if (!tourLayer) return;
       const newRadius = getTourPointRadius(map.getZoom());
@@ -503,7 +553,6 @@
       });
     });
 
-    // Fit map bounds automatically to active layers
     function fitAllExtent() {
       const activeLayers = [];
       if (document.getElementById('layerAdmin').checked && adminLayer) activeLayers.push(adminLayer);
@@ -516,13 +565,11 @@
       }
     }
 
-    // Auto-fetch the 3 GeoJSON files
     async function autoFetchGeoJSONFiles() {
       showToast("동일 경로의 GeoJSON 파일 읽는 중...", "fa-spin fa-circle-notch");
       
       let loadedCount = 0;
 
-      // 1. Fetch admin.geojson
       try {
         const res = await fetch('./admin.geojson');
         if (res.ok) {
@@ -535,7 +582,6 @@
         document.getElementById('adminStatus').className = "text-[10px] text-rose-400 font-mono bg-rose-950/80 px-1.5 py-0.5 rounded border border-rose-800";
       }
 
-      // 2. Fetch road.geojson
       try {
         const res = await fetch('./road.geojson');
         if (res.ok) {
@@ -548,7 +594,6 @@
         document.getElementById('roadStatus').className = "text-[10px] text-rose-400 font-mono bg-rose-950/80 px-1.5 py-0.5 rounded border border-rose-800";
       }
 
-      // 3. Fetch tourdata.geojson
       try {
         const res = await fetch('./tourdata.geojson');
         if (res.ok) {
@@ -569,7 +614,6 @@
       }
     }
 
-    // Manual Local File Picker Fallback
     document.getElementById('manualFileInput').addEventListener('change', function(e) {
       const files = Array.from(e.target.files);
       files.forEach(file => {
@@ -594,7 +638,74 @@
       });
     });
 
-    // --- 3. UI EVENT LISTENERS ---
+    // --- 3. AI 오케스트레이터 연동 로직 ---
+    const aiPromptInput = document.getElementById('aiPromptInput');
+    const btnSendPrompt = document.getElementById('btnSendPrompt');
+    const aiResultCard = document.getElementById('aiResultCard');
+    const aiIntentBadge = document.getElementById('aiIntentBadge');
+    const aiExplanation = document.getElementById('aiExplanation');
+    const aiJsonViewer = document.getElementById('aiJsonViewer');
+
+    // 예시 태그 클릭 시 입력창 반영
+    document.querySelectorAll('.example-tag').forEach(tagBtn => {
+      tagBtn.addEventListener('click', () => {
+        aiPromptInput.value = tagBtn.innerText.trim();
+      });
+    });
+
+    // 백엔드 server.js 연동 요청 함수
+    async function sendGisCommand() {
+      const promptText = aiPromptInput.value.trim();
+      if (!promptText) {
+        alert('분석할 자연어 명령을 입력해 주세요.');
+        return;
+      }
+
+      showToast("Gemini API 분석 중...", "fa-spin fa-wand-magic-sparkles");
+      btnSendPrompt.disabled = true;
+
+      try {
+        const response = await fetch('/api/parse-gis-command', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userPrompt: promptText })
+        });
+
+        const resData = await response.json();
+
+        if (resData.success && resData.command) {
+          const cmd = resData.command;
+
+          // 파싱 결과 화면에 표출
+          aiResultCard.classList.remove('hidden');
+          aiIntentBadge.innerText = cmd.intent.toUpperCase();
+          aiExplanation.innerText = cmd.explanation;
+          aiJsonViewer.innerText = JSON.stringify(cmd, null, 2);
+
+          showToast("AI 공간분석 파싱 성공!", "fa-check text-emerald-400", true);
+        } else {
+          throw new Error(resData.error || '파싱 결과가 유효하지 않습니다.');
+        }
+
+      } catch (err) {
+        console.error('AI Request Error:', err);
+        showToast("분석 서버 연동 실패", "fa-triangle-exclamation text-rose-400", true);
+        alert(`오류 발생: ${err.message}`);
+      } finally {
+        btnSendPrompt.disabled = false;
+      }
+    }
+
+    btnSendPrompt.addEventListener('click', sendGisCommand);
+    
+    // Ctrl + Enter 로도 실행
+    aiPromptInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+        sendGisCommand();
+      }
+    });
+
+    // --- 4. UI EVENT LISTENERS ---
     document.getElementById('layerAdmin').addEventListener('change', e => {
       if (!adminLayer) return;
       if (e.target.checked) map.addLayer(adminLayer);
